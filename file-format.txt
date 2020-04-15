@@ -1,0 +1,14 @@
+The format of this data file is:
+ number of test problems (K)
+ then for each test problem k (k=1,...,K) in turn:
+    number of variables (n), number of constraints (m), optimal solution value (zero if unavailable)
+    the coefficients p(j); j=1,...,n
+    for each constraint i (i=1,...,m): the coefficients v(i,j); j=1,...,n
+    the constraint right-hand sides b(i); i=1,...,m
+
+The remaining data files are the problems solved in P.C.Chu and
+ J.E.Beasley "A genetic algorithm for the multidimensional knapsack
+ problem", Journal of Heuristics, vol. 4, 1998, pp63-86.
+
+The best feasible solution values found and the value of the LP 
+ relaxation for these problems are given in the file best-feasible-slns.txt
