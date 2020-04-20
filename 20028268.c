@@ -22,10 +22,12 @@ int num_of_problems;    //number of problems
 
 
 /* parameters for evlutionary algorithms*/
-static int POP_SIZE = 50;   //please modify these parameters according to your problem
+static int POP_SIZE = 100;   //please modify these parameters according to your problem
 int MAX_NUM_OF_GEN = 10000; //max number of generations
 float CROSSOVER_RATE = 0.8;
-float MUTATION_RATE = 0.1;
+float MUTATION_RATE = 0.01;
+int MATING_POOL_SIZE = 50;
+int TOURM_SIZE = 4;
 
 /* declare parameters for simulated annealing here */
 
@@ -166,15 +168,19 @@ void free_solution(struct solution_struct* sln)
 //copy a solution from another solution
 bool copy_solution(struct solution_struct* dest_sln, struct solution_struct* source_sln)
 {
+    
     if(source_sln ==NULL) return false;
     if(dest_sln==NULL)
     {
-        dest_sln = malloc(sizeof(struct solution_struct));
+        
+        dest_sln = malloc(sizeof(struct solution_struct));        
     }
-    else{
+    else{       
         free(dest_sln->cap_left);
         free(dest_sln->x);
     }
+
+    //printf("dhw!!!!!!!!!!!!!!!!!!!\n");
     int n = source_sln->prob->n;
     int m =source_sln->prob->dim;
     dest_sln->x = malloc(sizeof(int)*n);
@@ -209,6 +215,7 @@ void evaluate_solution(struct solution_struct* sln)
             }
         }
     }
+
     if(sln->feasibility>0)
     {
         for(int j=0; j<sln->prob->n; j++)
@@ -299,18 +306,153 @@ int check_solutions(struct problem_struct** my_problems, char* solution_file)
 
 //intialise the population with random solutions
 void init_population(struct problem_struct* prob, struct solution_struct* pop){
-    //todo
+    
+    for(int i = 0; i < POP_SIZE; i++){
+        pop[i].prob = prob;
+        pop[i].x = malloc(sizeof(int)*prob->n);
+        pop[i].cap_left = malloc(sizeof(int)*prob->dim);        
+        //initialize all items as unpacked
+        for(int j = 0; j < prob->n; j++){
+            pop[i].x[j] = 0;
+        }
+        //initialize capacities in all dimensions
+        for(int k = 0; k < prob->dim; k++){
+            pop[i].cap_left[k]=prob->capacities[k];
+        }
 
+        //randomly initialize x        
+        while(1){
+            int index = rand_int(0, prob->n-1);
+            pop[i].x[index] = 1;
+            bool space_left = true;
+            for(int k = 0; k < prob->dim; k++){
+                pop[i].cap_left[k] -= prob->items[index].size[k];
+                if(pop[i].cap_left[k] < 0){
+                    space_left = false;
+                }
+            }
+            //unpack the last item causing overload
+            if(!space_left){   
+                pop[i].x[index] = 0;
+                for(int k = 0; k < prob->dim; k++){
+                    pop[i].cap_left[k] += prob->items[index].size[k];
+                }
+                break;
+            }
+        }
+        evaluate_solution(&pop[i]);
+        // printf("item_num: %d ", prob->n);
+        // printf("objective: %f ", pop[i].objective);
+        // for(int j=0; j<prob->n; j++) {
+        //     printf("%d ", pop[i].x[j]);
+        // }
+        // printf("\n");
+    }
+
+}
+
+int arr_max(float array[]){
+    float max = array[0];
+	int size = TOURM_SIZE;
+	int i = 0;
+	for (i = 0; i < size; i++){
+		if (max < array[i])
+			max = array[i];
+	}
+    return max;
+}
+
+// void selection(int mating_pool[], struct solution_struct* source_pop){
+//     //Tournament Selection
+//     for(int i = 0; i < MATING_POOL_SIZE; i++){  //50 times
+//         int candidate;
+//         int candidates_index[TOURM_SIZE];      //storing candidates objective
+//         float candidates_obj[TOURM_SIZE];
+//         for(int j = 0; j < TOURM_SIZE; j++){
+//             int random_index = rand_int(0, source_pop->prob->n-1);
+//             candidates_index[j] = random_index;
+//             candidates_obj[j] = source_pop[random_index].objective;
+//         }
+//         int parent = arr_max(candidates_obj);
+//         for(int j = 0; j < TOURM_SIZE; j++){
+//             if(parent == candidates_obj[j]){
+//                 candidate = candidates_index[j];
+//                 break;
+//             }
+//         }
+//         mating_pool[i] = candidate;
+//     }
+    
+// }
+
+void selection(struct solution_struct* mating_pool, struct solution_struct* source_pop){
+    for(int i = 0; i < MATING_POOL_SIZE; i++){  //50 times
+        int candidate;      
+        for(int j = 0; j < TOURM_SIZE; j++){                        
+            int candidates_index[TOURM_SIZE];      //storing candidates objective
+            float candidates_obj[TOURM_SIZE];
+            for(int j = 0; j < TOURM_SIZE; j++){
+                int random_index = rand_int(0, source_pop->prob->n-1);
+                candidates_index[j] = random_index;
+                candidates_obj[j] = source_pop[random_index].objective;
+            }
+            int parent = arr_max(candidates_obj);
+            for(int j = 0; j < TOURM_SIZE; j++){
+                if(parent == candidates_obj[j]){
+                    candidate = candidates_index[j];
+                    break;
+                }
+            }  
+        }
+        printf("%d ", candidate);
+        //select which one to be the pool
+        //copy_solution(&mating_pool[i], &source_pop[candidate]);
+        //printf("!!!!!!\n");
+        // pop[i].prob = prob;
+        // pop[i].x = malloc(sizeof(int)*prob->n);
+        // pop[i].cap_left = malloc(sizeof(int)*prob->dim);  
+    }
+    printf("\n");
 }
 
 void cross_over(struct solution_struct* pop)
 {
     //todo
+    //1 pop[2i]
+    //2 pop[2i+1]
+    //only crossover between adjacent solution
+
+    for(int i = 0; i < MATING_POOL_SIZE/2; i++){    //i  0-24
+        float crossover_rate = rand_01();
+        int chorom_length = pop->prob->n-1;
+        if(crossover_rate < CROSSOVER_RATE){
+            int split_point = rand_int(1, chorom_length);
+            int temp_x[split_point];
+            //swap the fist segment
+            for(int j = 0; j < split_point; j++){
+                temp_x[j] = pop[2*i].x[j];          //store the x value of 1st chorom
+                pop[2*i].x[j] = pop[2*i+1].x[j];
+                pop[2*i+1].x[j] = temp_x[j];
+            }
+        }
+    }
 }
 
 void mutation(struct solution_struct* pop)
 {
     //todo
+    int chorom_length = pop->prob->n-1;
+    for(int i = 0; i < MATING_POOL_SIZE; i++){
+        for(int j = 0; j < chorom_length; j++){
+            float mutation_rate = rand_01();
+            if(mutation_rate < MUTATION_RATE){
+                if(pop[i].x[j] == 0)
+                    pop[i].x[j] == 1;
+                else
+                    pop[i].x[j] == 0;
+            }
+        }
+    }
 }
 ////////////////////////////////////////////////////////////////////////////
 
@@ -318,6 +460,11 @@ void mutation(struct solution_struct* pop)
 void feasibility_repair(struct solution_struct* pop)
 {
     //todo
+    //按照item的value进行排序
+    //一直把value最小的扔掉直到不再超出constrain
+    for(int i = 0; i < MATING_POOL_SIZE; i++) {
+        
+    }
 }
 
 //local search
@@ -347,20 +494,22 @@ int memeticAlgorithm(struct problem_struct* prob)
     int iter =0;        //number of generation
     /////////////////
     struct solution_struct parent_pop[POP_SIZE];
-    struct solution_struct offspring_pop[POP_SIZE];
+    struct solution_struct mating_pool[MATING_POOL_SIZE];
+    //int mating_pool[MATING_POOL_SIZE];       //store the index of mating pool
+    //struct solution_struct offspring_pop[POP_SIZE];
     init_population(prob, parent_pop);
-    init_population(prob, offspring_pop);
+    //init_population(prob, offspring_pop);
     /////////////////
 
     while(iter<MAX_NUM_OF_GEN && time_spent < MAX_TIME)
     {
         //////////////////////
-        //take all individuals to crossover
-        cross_over(offspring_pop);
-        mutation(offspring_pop);
-        feasibility_repair(offspring_pop);
-        local_search_first_descent(offspring_pop);
-        replacement(parent_pop, offspring_pop);
+        selection(mating_pool, parent_pop);
+        cross_over(parent_pop);
+        mutation(parent_pop);
+        // feasibility_repair(offspring_pop);
+        // local_search_first_descent(offspring_pop);
+        // replacement(parent_pop, offspring_pop);
         ///////////////////////
         iter++;
         time_fin=clock();
@@ -417,7 +566,7 @@ int main(int argc, const char * argv[]) {
             {
                 srand(RAND_SEED[run]);
                 
-                memeticAlgorithm(my_problems[k]); // call SA method
+                memeticAlgorithm(my_problems[k]); // call MA method
             }
             output_solution(&best_sln,out_file);
         }
