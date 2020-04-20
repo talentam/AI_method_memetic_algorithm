@@ -171,8 +171,7 @@ bool copy_solution(struct solution_struct* dest_sln, struct solution_struct* sou
     
     if(source_sln ==NULL) return false;
     if(dest_sln==NULL)
-    {
-        
+    {   
         dest_sln = malloc(sizeof(struct solution_struct));        
     }
     else{       
@@ -180,7 +179,6 @@ bool copy_solution(struct solution_struct* dest_sln, struct solution_struct* sou
         free(dest_sln->x);
     }
 
-    //printf("dhw!!!!!!!!!!!!!!!!!!!\n");
     int n = source_sln->prob->n;
     int m =source_sln->prob->dim;
     dest_sln->x = malloc(sizeof(int)*n);
@@ -386,8 +384,14 @@ int arr_max(float array[]){
 // }
 
 void selection(struct solution_struct* mating_pool, struct solution_struct* source_pop){
-    for(int i = 0; i < MATING_POOL_SIZE; i++){  //50 times
-        int candidate;      
+    for(int i = 0; i < MATING_POOL_SIZE; i++){
+        ////////////////////////////////
+        //防止copy_solution的free导致segmentation fault
+        mating_pool[i].x = malloc(sizeof(int)*source_pop->prob->n);
+        mating_pool[i].cap_left = malloc(sizeof(int)*source_pop->prob->dim);  
+
+
+        int candidate;
         for(int j = 0; j < TOURM_SIZE; j++){                        
             int candidates_index[TOURM_SIZE];      //storing candidates objective
             float candidates_obj[TOURM_SIZE];
@@ -404,15 +408,15 @@ void selection(struct solution_struct* mating_pool, struct solution_struct* sour
                 }
             }  
         }
-        printf("%d ", candidate);
+        //printf("%d ", candidate);
         //select which one to be the pool
-        //copy_solution(&mating_pool[i], &source_pop[candidate]);
+        copy_solution(&mating_pool[i], &source_pop[candidate]);
         //printf("!!!!!!\n");
-        // pop[i].prob = prob;
-        // pop[i].x = malloc(sizeof(int)*prob->n);
-        // pop[i].cap_left = malloc(sizeof(int)*prob->dim);  
+        // for(int a = 0; a < MATING_POOL_SIZE; a++){
+        //     printf("%d ", mating_pool[i].x[a]);
+        // }  
+        // printf("\n");        
     }
-    printf("\n");
 }
 
 void cross_over(struct solution_struct* pop)
@@ -435,6 +439,7 @@ void cross_over(struct solution_struct* pop)
                 pop[2*i+1].x[j] = temp_x[j];
             }
         }
+        evaluate_solution(&pop[i]);
     }
 }
 
@@ -452,6 +457,7 @@ void mutation(struct solution_struct* pop)
                     pop[i].x[j] == 0;
             }
         }
+        evaluate_solution(&pop[i]);
     }
 }
 ////////////////////////////////////////////////////////////////////////////
@@ -463,8 +469,13 @@ void feasibility_repair(struct solution_struct* pop)
     //按照item的value进行排序
     //一直把value最小的扔掉直到不再超出constrain
     for(int i = 0; i < MATING_POOL_SIZE; i++) {
-        
+        if(pop[i].feasibility < 0){
+            
+        }
     }
+    // if(pop->objective == 0.0){
+    //     printf("overload\n");
+    // }
 }
 
 //local search
@@ -505,9 +516,9 @@ int memeticAlgorithm(struct problem_struct* prob)
     {
         //////////////////////
         selection(mating_pool, parent_pop);
-        cross_over(parent_pop);
-        mutation(parent_pop);
-        // feasibility_repair(offspring_pop);
+        cross_over(mating_pool);
+        mutation(mating_pool);
+        feasibility_repair(mating_pool);
         // local_search_first_descent(offspring_pop);
         // replacement(parent_pop, offspring_pop);
         ///////////////////////
