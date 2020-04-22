@@ -632,10 +632,10 @@ void replacement(struct solution_struct* curt_pop, struct solution_struct* new_p
             if(max_obj <= mix_pop[j].objective){
                 max_obj = mix_pop[j].objective;
                 max_index = j;
-                copy_solution(&new_pop[i], &mix_pop[max_index]);
-                break;
+                
             }
         }
+        copy_solution(&new_pop[i], &mix_pop[max_index]);
         //copy_solution(&temp_pop, &mix_pop[max_index]);
     }
 
@@ -678,7 +678,7 @@ int memeticAlgorithm(struct problem_struct* prob)
         mutation(mating_pool);
         feasibility_repair(mating_pool);
         local_search_first_descent(mating_pool);
-        printf("1\n");
+        //printf("1\n");
         replacement(mating_pool, parent_pop);
         ///////////////////////
         iter++;
