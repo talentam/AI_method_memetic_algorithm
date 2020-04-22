@@ -22,7 +22,7 @@ int num_of_problems;    //number of problems
 
 
 /* parameters for evlutionary algorithms*/
-static int POP_SIZE = 100;   //please modify these parameters according to your problem
+static int POP_SIZE = 200;   //please modify these parameters according to your problem
 int MAX_NUM_OF_GEN = 10000; //max number of generations
 float CROSSOVER_RATE = 0.5;
 float MUTATION_RATE = 0.02;
@@ -525,27 +525,6 @@ void feasibility_repair(struct solution_struct* pop)
         //add
 
         while(1){
-            // int price, size, index;
-            // float ratio;
-            // //initialize price, size, index, index
-            // for(int j = 0; j < chorom_length; j++){
-            //     if(pop[i].x[j] == 0){
-            //         price = pop[i].prob->items[0].p;
-            //         for(int k = 0; k < pop[i].prob->dim; k++){
-            //             size += pop[i].prob->items[0].size[i];
-            //         }
-            //         ratio = price/size;
-            //         index = j;
-            //         //printf("min_price %d \n", min_price);
-            //         break;
-            //     }
-            // }
-            
-            // for(int j = 0; j < chorom_length; j++){
-            //     if(pop[i].x[j] == 0 && pop[i].prob->items[j].p >= ratio){
-            //     }
-            // }
-
             //initialize max_price and max_index
             int max_price, max_index;
             for(int j = 0; j < chorom_length; j++){
@@ -555,7 +534,6 @@ void feasibility_repair(struct solution_struct* pop)
                     break;
                 }
             }
-
             //find max_price and max_index
             for(int j = 0; j < chorom_length; j++){
                 if(pop[i].prob->items[j].p > max_price && pop[i].x[j] == 0){
