@@ -16,7 +16,7 @@
 
 /* global parameters */
 int RAND_SEED[] = {1,20,30,40,50,60,70,80,90,100,110, 120, 130, 140, 150, 160, 170, 180, 190, 200};
-int NUM_OF_RUNS = 5;
+int NUM_OF_RUNS = 1;
 int MAX_TIME = 30;  //max amount of time permited (in sec)
 int num_of_problems;    //number of problems
 
@@ -25,7 +25,7 @@ int num_of_problems;    //number of problems
 static int POP_SIZE = 100;   //please modify these parameters according to your problem
 int MAX_NUM_OF_GEN = 10000; //max number of generations
 float CROSSOVER_RATE = 0.8;
-float MUTATION_RATE = 0.01;
+float MUTATION_RATE = 0.05;
 int MATING_POOL_SIZE = 50;
 int TOURM_SIZE = 4;
 
@@ -148,7 +148,7 @@ struct problem_struct** load_problems(char* data_file)
 struct solution_struct{
     struct problem_struct* prob; //maintain a shallow copy of the problem data
     float objective;    //the price of the current solution
-    int feasibility; //indicate the feasiblity of the solution, -i means capacity overload in i dimension
+    int feasibility; //indicate the feasiblity of the solution
     int* x; //chromosome vector
     int* cap_left; //capacity left in all dimensions
 };
@@ -303,8 +303,7 @@ int check_solutions(struct problem_struct** my_problems, char* solution_file)
 
 
 //intialise the population with random solutions
-void init_population(struct problem_struct* prob, struct solution_struct* pop){
-    
+void init_population(struct problem_struct* prob, struct solution_struct* pop){   
     for(int i = 0; i < POP_SIZE; i++){
         pop[i].prob = prob;
         pop[i].x = malloc(sizeof(int)*prob->n);
@@ -339,14 +338,14 @@ void init_population(struct problem_struct* prob, struct solution_struct* pop){
             }
         }
         evaluate_solution(&pop[i]);
+        //printf("feasibility%d %d \n", i, pop[i].feasibility);
         // printf("item_num: %d ", prob->n);
         // printf("objective: %f ", pop[i].objective);
         // for(int j=0; j<prob->n; j++) {
         //     printf("%d ", pop[i].x[j]);
         // }
-        // printf("\n");
+        //printf("%d\n", i);
     }
-
 }
 
 int arr_max(float array[]){
@@ -412,10 +411,17 @@ void selection(struct solution_struct* mating_pool, struct solution_struct* sour
         //select which one to be the pool
         copy_solution(&mating_pool[i], &source_pop[candidate]);
         //printf("!!!!!!\n");
-        // for(int a = 0; a < MATING_POOL_SIZE; a++){
-        //     printf("%d ", mating_pool[i].x[a]);
-        // }  
-        // printf("\n");        
+        //printf("feasibility%d %d \n", i, mating_pool[i].feasibility);
+        //test for whether overcross
+        // if(i == 0 || i == 1){
+        //     for(int a = 0; a < MATING_POOL_SIZE; a++){
+        //         printf("%d ", mating_pool[i].x[a]);
+        //     }  
+        //     printf("\n");
+        // }
+
+        
+        //printf("%d\n", i);        
     }
 }
 
@@ -424,11 +430,23 @@ void cross_over(struct solution_struct* pop)
     //todo
     //1 pop[2i]
     //2 pop[2i+1]
-    //only crossover between adjacent solution
+    //for now only crossover between adjacent solution
 
     for(int i = 0; i < MATING_POOL_SIZE/2; i++){    //i  0-24
         float crossover_rate = rand_01();
-        int chorom_length = pop->prob->n-1;
+        int chorom_length = pop->prob->n;
+        //test for whether overcross
+        // if(i == 0){
+        //     for(int a = 0; a < chorom_length; a++){
+        //         printf("%d ", pop[i].x[a]);
+        //     }
+        //     printf("\n");
+        //     for(int a = 0; a < chorom_length; a++){
+        //        printf("%d ", pop[i+1].x[a]);
+        //     }
+        //     printf("\n");
+        // }
+
         if(crossover_rate < CROSSOVER_RATE){
             int split_point = rand_int(1, chorom_length);
             int temp_x[split_point];
@@ -439,25 +457,42 @@ void cross_over(struct solution_struct* pop)
                 pop[2*i+1].x[j] = temp_x[j];
             }
         }
-        evaluate_solution(&pop[i]);
+        evaluate_solution(&pop[2*i]);
+        evaluate_solution(&pop[2*i+1]);
+        //printf("feasibility%d %d \n", 2*i, pop[2*i].feasibility);
+        //printf("feasibility%d %d \n", 2*i+1, pop[2*i+1].feasibility);
+        //test for whether overcross
+        // if(i == 0){
+        //     for(int a = 0; a < chorom_length; a++){
+        //         printf("%d ", pop[i].x[a]);
+        //     }
+        //     printf("\n");
+        //     for(int a = 0; a < chorom_length; a++){
+        //        printf("%d ", pop[i+1].x[a]);
+        //     }
+        //     printf("\n");
+        // }
     }
 }
 
 void mutation(struct solution_struct* pop)
 {
     //todo
-    int chorom_length = pop->prob->n-1;
-    for(int i = 0; i < MATING_POOL_SIZE; i++){
+    int chorom_length = pop->prob->n;
+    for(int i = 0; i < MATING_POOL_SIZE; i++){        
         for(int j = 0; j < chorom_length; j++){
             float mutation_rate = rand_01();
             if(mutation_rate < MUTATION_RATE){
-                if(pop[i].x[j] == 0)
-                    pop[i].x[j] == 1;
-                else
-                    pop[i].x[j] == 0;
+                if(pop[i].x[j] == 0){
+                    pop[i].x[j] = 1;
+                }
+                else{
+                    pop[i].x[j] = 0;
+                }
             }
         }
         evaluate_solution(&pop[i]);
+        //printf("feasibility %d \n", pop[i].feasibility);
     }
 }
 ////////////////////////////////////////////////////////////////////////////
@@ -466,26 +501,148 @@ void mutation(struct solution_struct* pop)
 void feasibility_repair(struct solution_struct* pop)
 {
     //todo
-    //按照item的value进行排序
-    //一直把value最小的扔掉直到不再超出constrain
+    //sort by price
+    int chorom_length = pop->prob->n;
+    //printf("chorom_length: %d\n", chorom_length);
     for(int i = 0; i < MATING_POOL_SIZE; i++) {
-        if(pop[i].feasibility < 0){
+        //sort first
+        //then remove the least one
+        //evaluate()
+        while(pop[i].feasibility != 1){
+            //initialize min_price and min_index
+            int min_price, min_index;
+            for(int j = 0; j < chorom_length; j++){
+                if(pop[i].x[j] == 1){
+                    min_price = pop[i].prob->items[0].p;
+                    min_index = j;
+                    //printf("min_price %d \n", min_price);
+                    break;
+                }
+            }
+            //printf("min_price %d \n", min_price);
+            //for(int j = chorom_length; j > 0; j--){
+            for(int j = 0; j < chorom_length; j++){                
+                if(pop[i].prob->items[j].p < min_price && pop[i].x[j] == 1){
+                    min_price = pop[i].prob->items[j].p;
+                    min_index = j;
+                }
+            }
+            pop[i].x[min_index] = 0;
+            evaluate_solution(&pop[i]);
             
         }
+        //printf("feasibility %d \n", pop[i].feasibility);
     }
-    // if(pop->objective == 0.0){
-    //     printf("overload\n");
+    // for(int a = 0; a < MATING_POOL_SIZE; a++){
+    //     printf("feasibility %d \n", pop[a].feasibility);
     // }
+    // printf("MATING_POOL_SIZE %d \n", MATING_POOL_SIZE);
 }
 
 //local search
 void local_search_first_descent(struct solution_struct* pop)
 {
     //todo
+    //pair swap
+    int chorom_length = pop->prob->n;
+    //printf("chorom_length: %d\n", chorom_length);
+    for(int i = 0; i < MATING_POOL_SIZE; i++){
+        //evaluate_solution(&pop[i]);
+        //printf("feasibility %d \n", pop[i].feasibility);
+        int improvement = 1;
+        while(improvement == 1){
+            improvement = 0;
+            //printf("goin!\n");
+            for(int j = 0; j < chorom_length-1; j++){
+                for(int k = j+1; k < chorom_length; k++){
+                    //printf("j %d k %d \n", j, k);
+                    if(pop[i].x[j] + pop[i].x[k] == 1){             //test whether 1/0  or   0/1
+                        //swap
+                        //printf("feasibility %d \n", pop[i].feasibility);
+                        int temp_obj = pop[i].objective;
+                        int temp_x = pop[i].x[k];
+                        pop[i].x[k] = pop[i].x[j];
+                        pop[i].x[j] = temp_x;
+                        evaluate_solution(&pop[i]);
+                        //printf("feasibility %d \n", pop[i].feasibility);
+                        if(pop[i].feasibility <= 0 || pop[i].objective <= temp_obj){      //bad swap
+                            //if bad swap, swap it back
+                            int temp_x = pop[i].x[k];
+                            pop[i].x[k] = pop[i].x[j];
+                            pop[i].x[j] = temp_x;
+                            evaluate_solution(&pop[i]);
+                            //printf("feasibility %d \n", pop[i].feasibility);
+                            improvement = 0;
+                        }
+                        else if(pop[i].feasibility > 0 || pop[i].objective > temp_obj){       //good swap
+                            //printf("feasibility %d \n", pop[i].feasibility);
+                            improvement = 1;
+                            break;
+                        }
+                    }  
+                }
+                if(improvement == 1){
+                    break;
+                }  
+            }
+            // for(int a = 0; a < chorom_length; a++){
+            //    printf("%d ", pop[1].x[a]);
+            // }
+            // printf("\n");
+        }
+        //printf("go!\n");
+    }
+}
+
+void free_population(struct solution_struct* pop, int size) {
+    for(int p=0; p<size; p++) {   
+        if(pop[p].x != NULL && pop[p].cap_left != NULL) {
+        free(pop[p].x);
+        free(pop[p].cap_left);
+        }
+    }
 }
 
 void replacement(struct solution_struct* curt_pop, struct solution_struct* new_pop){
     //todo
+    //  curt_pop: mating_pool
+    //  new_pop: parent_pop
+    struct solution_struct mix_pop[POP_SIZE+MATING_POOL_SIZE];
+    //struct solution_struct temp_pop;
+    //防止copy_solution的free导致segmentation fault?????????????????????????????????????
+    for(int i = 0; i < POP_SIZE+MATING_POOL_SIZE; i++){
+        mix_pop[i].x = malloc(sizeof(int)*curt_pop->prob->n);
+        mix_pop[i].cap_left = malloc(sizeof(int)*curt_pop->prob->dim); 
+    }
+    //temp_pop.x = malloc(sizeof(int)*curt_pop->prob->n);
+    //temp_pop.cap_left = malloc(sizeof(int)*curt_pop->prob->n);
+    //add mating_pool individuals to mix_pop
+    for(int i = 0; i < MATING_POOL_SIZE; i++) {
+        copy_solution(&mix_pop[i], &curt_pop[i]);
+    }
+    //add parent_pop individuals to mix_pop
+    for(int i = 0; i < POP_SIZE; i++) {
+        copy_solution(&mix_pop[MATING_POOL_SIZE+i], &new_pop[i]);
+    }
+    //select the individuals with higher objective      100 times
+    for(int i = 0; i < POP_SIZE; i++){  
+        int max_obj = mix_pop[0].objective;
+        int max_index = 0;
+        for(int j = 0; j < POP_SIZE+MATING_POOL_SIZE; j++){
+            if(max_obj <= mix_pop[j].objective){
+                max_obj = mix_pop[j].objective;
+                max_index = j;
+                copy_solution(&new_pop[i], &mix_pop[max_index]);
+                break;
+            }
+        }
+        //copy_solution(&temp_pop, &mix_pop[max_index]);
+    }
+
+    //free
+    free_population(mix_pop, POP_SIZE+MATING_POOL_SIZE);
+    free_population(curt_pop, MATING_POOL_SIZE);
+
 }
 
 //update global best solution from sln
@@ -516,16 +673,19 @@ int memeticAlgorithm(struct problem_struct* prob)
     {
         //////////////////////
         selection(mating_pool, parent_pop);
+        //printf("1");
         cross_over(mating_pool);
         mutation(mating_pool);
         feasibility_repair(mating_pool);
-        // local_search_first_descent(offspring_pop);
-        // replacement(parent_pop, offspring_pop);
+        local_search_first_descent(mating_pool);
+        printf("1\n");
+        replacement(mating_pool, parent_pop);
         ///////////////////////
         iter++;
         time_fin=clock();
         time_spent = (double)(time_fin-time_start)/CLOCKS_PER_SEC;
     }
+    //printf("1\n");
     update_best_solution(parent_pop);
     
     //output_solution(&best_sln[0], "my_debug.txt");
