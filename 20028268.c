@@ -24,8 +24,8 @@ int num_of_problems;    //number of problems
 /* parameters for evlutionary algorithms*/
 static int POP_SIZE = 100;   //please modify these parameters according to your problem
 int MAX_NUM_OF_GEN = 10000; //max number of generations
-float CROSSOVER_RATE = 0.8;
-float MUTATION_RATE = 0.05;
+float CROSSOVER_RATE = 0.5;
+float MUTATION_RATE = 0.02;
 int MATING_POOL_SIZE = 50;
 int TOURM_SIZE = 4;
 
@@ -395,7 +395,7 @@ void selection(struct solution_struct* mating_pool, struct solution_struct* sour
             int candidates_index[TOURM_SIZE];      //storing candidates objective
             float candidates_obj[TOURM_SIZE];
             for(int j = 0; j < TOURM_SIZE; j++){
-                int random_index = rand_int(0, source_pop->prob->n-1);
+                int random_index = rand_int(0, POP_SIZE-1);
                 candidates_index[j] = random_index;
                 candidates_obj[j] = source_pop[random_index].objective;
             }
@@ -432,21 +432,10 @@ void cross_over(struct solution_struct* pop)
     //2 pop[2i+1]
     //for now only crossover between adjacent solution
 
+    /* One Point Crossover */
     for(int i = 0; i < MATING_POOL_SIZE/2; i++){    //i  0-24
         float crossover_rate = rand_01();
         int chorom_length = pop->prob->n;
-        //test for whether overcross
-        // if(i == 0){
-        //     for(int a = 0; a < chorom_length; a++){
-        //         printf("%d ", pop[i].x[a]);
-        //     }
-        //     printf("\n");
-        //     for(int a = 0; a < chorom_length; a++){
-        //        printf("%d ", pop[i+1].x[a]);
-        //     }
-        //     printf("\n");
-        // }
-
         if(crossover_rate < CROSSOVER_RATE){
             int split_point = rand_int(1, chorom_length);
             int temp_x[split_point];
@@ -459,20 +448,24 @@ void cross_over(struct solution_struct* pop)
         }
         evaluate_solution(&pop[2*i]);
         evaluate_solution(&pop[2*i+1]);
-        //printf("feasibility%d %d \n", 2*i, pop[2*i].feasibility);
-        //printf("feasibility%d %d \n", 2*i+1, pop[2*i+1].feasibility);
-        //test for whether overcross
-        // if(i == 0){
-        //     for(int a = 0; a < chorom_length; a++){
-        //         printf("%d ", pop[i].x[a]);
-        //     }
-        //     printf("\n");
-        //     for(int a = 0; a < chorom_length; a++){
-        //        printf("%d ", pop[i+1].x[a]);
-        //     }
-        //     printf("\n");
-        // }
     }
+    /* Uniform Crossover */
+    // int chorom_length = pop->prob->n;
+    // for(int i = 0; i < MATING_POOL_SIZE/2; i++){    //i  0-24
+    //     for(int j = 0; j < chorom_length; j++){
+    //         float crossover_rate = rand_01();
+    //         int temp_x;
+    //         if(crossover_rate < CROSSOVER_RATE){
+    //             temp_x = pop[2*i].x[j];          //store the x value of 1st chorom
+    //             pop[2*i].x[j] = pop[2*i+1].x[j];
+    //             pop[2*i+1].x[j] = temp_x;
+    //         }
+    //         evaluate_solution(&pop[2*i]);
+    //         evaluate_solution(&pop[2*i+1]);
+    //     }
+    // }
+
+
 }
 
 void mutation(struct solution_struct* pop)
@@ -503,11 +496,11 @@ void feasibility_repair(struct solution_struct* pop)
     //todo
     //sort by price
     int chorom_length = pop->prob->n;
-    //printf("chorom_length: %d\n", chorom_length);
+    
+    //3 per iteration
     for(int i = 0; i < MATING_POOL_SIZE; i++) {
-        //sort first
-        //then remove the least one
-        //evaluate()
+
+        //drop
         while(pop[i].feasibility != 1){
             //initialize min_price and min_index
             int min_price, min_index;
@@ -519,8 +512,6 @@ void feasibility_repair(struct solution_struct* pop)
                     break;
                 }
             }
-            //printf("min_price %d \n", min_price);
-            //for(int j = chorom_length; j > 0; j--){
             for(int j = 0; j < chorom_length; j++){                
                 if(pop[i].prob->items[j].p < min_price && pop[i].x[j] == 1){
                     min_price = pop[i].prob->items[j].p;
@@ -531,6 +522,57 @@ void feasibility_repair(struct solution_struct* pop)
             evaluate_solution(&pop[i]);
             
         }
+        //add
+
+        while(1){
+            // int price, size, index;
+            // float ratio;
+            // //initialize price, size, index, index
+            // for(int j = 0; j < chorom_length; j++){
+            //     if(pop[i].x[j] == 0){
+            //         price = pop[i].prob->items[0].p;
+            //         for(int k = 0; k < pop[i].prob->dim; k++){
+            //             size += pop[i].prob->items[0].size[i];
+            //         }
+            //         ratio = price/size;
+            //         index = j;
+            //         //printf("min_price %d \n", min_price);
+            //         break;
+            //     }
+            // }
+            
+            // for(int j = 0; j < chorom_length; j++){
+            //     if(pop[i].x[j] == 0 && pop[i].prob->items[j].p >= ratio){
+            //     }
+            // }
+
+            //initialize max_price and max_index
+            int max_price, max_index;
+            for(int j = 0; j < chorom_length; j++){
+                if(pop[i].x[j] == 0){
+                    max_price = pop[i].prob->items[0].p;
+                    max_index = j;
+                    break;
+                }
+            }
+
+            //find max_price and max_index
+            for(int j = 0; j < chorom_length; j++){
+                if(pop[i].prob->items[j].p > max_price && pop[i].x[j] == 0){
+                    max_price = pop[i].prob->items[0].p;
+                    max_index = j;
+                }
+            }
+            pop[i].x[max_index] = 1;
+            evaluate_solution(&pop[i]);
+            //drop the last item if it violates capacity
+            if(pop[i].feasibility != 1){
+                pop[i].x[max_index] = 0;
+                evaluate_solution(&pop[i]);
+                break;
+            }
+        }
+        //evaluate_solution(&pop[i]);
         //printf("feasibility %d \n", pop[i].feasibility);
     }
     // for(int a = 0; a < MATING_POOL_SIZE; a++){
@@ -546,13 +588,12 @@ void local_search_first_descent(struct solution_struct* pop)
     //pair swap
     int chorom_length = pop->prob->n;
     //printf("chorom_length: %d\n", chorom_length);
-    for(int i = 0; i < MATING_POOL_SIZE; i++){
+    //printf("obj: %d\n", chorom_length);
+    for(int i = 0; i < MATING_POOL_SIZE; i+=3){
         //evaluate_solution(&pop[i]);
         //printf("feasibility %d \n", pop[i].feasibility);
         int improvement = 1;
         while(improvement == 1){
-            improvement = 0;
-            //printf("goin!\n");
             for(int j = 0; j < chorom_length-1; j++){
                 for(int k = j+1; k < chorom_length; k++){
                     //printf("j %d k %d \n", j, k);
@@ -673,7 +714,7 @@ int memeticAlgorithm(struct problem_struct* prob)
     {
         //////////////////////
         selection(mating_pool, parent_pop);
-        //printf("1");
+        //printf("1\n");
         cross_over(mating_pool);
         mutation(mating_pool);
         feasibility_repair(mating_pool);
@@ -684,9 +725,11 @@ int memeticAlgorithm(struct problem_struct* prob)
         iter++;
         time_fin=clock();
         time_spent = (double)(time_fin-time_start)/CLOCKS_PER_SEC;
+        printf("gap: %f%%\n", (24381.0-parent_pop[0].objective)/24381.0);
     }
     //printf("1\n");
     update_best_solution(parent_pop);
+    
     
     //output_solution(&best_sln[0], "my_debug.txt");
     
