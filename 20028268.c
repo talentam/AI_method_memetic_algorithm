@@ -22,11 +22,12 @@ int num_of_problems;    //number of problems
 
 
 /* parameters for evlutionary algorithms*/
-static int POP_SIZE = 200;   //please modify these parameters according to your problem
+static int POP_SIZE = 80;   //please modify these parameters according to your problem
 int MAX_NUM_OF_GEN = 10000; //max number of generations
-float CROSSOVER_RATE = 0.5;
+float CROSSOVER_RATE = 0.8;
 float MUTATION_RATE = 0.02;
-int MATING_POOL_SIZE = 50;
+int MATING_POOL_SIZE = 80;
+int LOCAL_SEARCH_GAP = 3;
 int TOURM_SIZE = 4;
 
 /* declare parameters for simulated annealing here */
@@ -567,7 +568,7 @@ void local_search_first_descent(struct solution_struct* pop)
     int chorom_length = pop->prob->n;
     //printf("chorom_length: %d\n", chorom_length);
     //printf("obj: %d\n", chorom_length);
-    for(int i = 0; i < MATING_POOL_SIZE; i+=3){
+    for(int i = 0; i < MATING_POOL_SIZE; i+=LOCAL_SEARCH_GAP){
         //evaluate_solution(&pop[i]);
         //printf("feasibility %d \n", pop[i].feasibility);
         int improvement = 1;
@@ -627,14 +628,11 @@ void replacement(struct solution_struct* curt_pop, struct solution_struct* new_p
     //  curt_pop: mating_pool
     //  new_pop: parent_pop
     struct solution_struct mix_pop[POP_SIZE+MATING_POOL_SIZE];
-    //struct solution_struct temp_pop;
     //防止copy_solution的free导致segmentation fault?????????????????????????????????????
     for(int i = 0; i < POP_SIZE+MATING_POOL_SIZE; i++){
         mix_pop[i].x = malloc(sizeof(int)*curt_pop->prob->n);
         mix_pop[i].cap_left = malloc(sizeof(int)*curt_pop->prob->dim); 
     }
-    //temp_pop.x = malloc(sizeof(int)*curt_pop->prob->n);
-    //temp_pop.cap_left = malloc(sizeof(int)*curt_pop->prob->n);
     //add mating_pool individuals to mix_pop
     for(int i = 0; i < MATING_POOL_SIZE; i++) {
         copy_solution(&mix_pop[i], &curt_pop[i]);
@@ -696,7 +694,7 @@ int memeticAlgorithm(struct problem_struct* prob)
         cross_over(mating_pool);
         mutation(mating_pool);
         feasibility_repair(mating_pool);
-        local_search_first_descent(mating_pool);
+        //local_search_first_descent(mating_pool);
         //printf("1\n");
         replacement(mating_pool, parent_pop);
         ///////////////////////
