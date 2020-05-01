@@ -22,16 +22,18 @@ int num_of_problems;    //number of problems
 
 
 /* parameters for evlutionary algorithms*/
-static int POP_SIZE = 80;   //please modify these parameters according to your problem
+static int POP_SIZE = 70;   //please modify these parameters according to your problem
 int MAX_NUM_OF_GEN = 10000; //max number of generations
 float CROSSOVER_RATE = 0.5;
 float MUTATION_RATE = 0.02;
-int MATING_POOL_SIZE = 80;
-int LOCAL_SEARCH_GAP = 3;
+int MATING_POOL_SIZE = 70;
+int LOCAL_SEARCH_GAP = 1;
 int TOURM_SIZE = 4;
+float LOCAL_SEARCH_RATE = 0.25;
 
 clock_t time_start, time_fin;
 int K= 3; // k-opt is used
+float SAMPLING_RATE = 2;
 
 /* declare parameters for simulated annealing here */
 
@@ -307,8 +309,6 @@ int check_solutions(struct problem_struct** my_problems, char* solution_file)
     fclose(pfile);
     return 0;
 }
-///////////////////////////////////////////////////////////////////////////
-
 
 //intialise the population with random solutions
 void init_population(struct problem_struct* prob, struct solution_struct* pop){   
@@ -367,29 +367,6 @@ int arr_max(float array[]){
     return max;
 }
 
-// void selection(int mating_pool[], struct solution_struct* source_pop){
-//     //Tournament Selection
-//     for(int i = 0; i < MATING_POOL_SIZE; i++){  //50 times
-//         int candidate;
-//         int candidates_index[TOURM_SIZE];      //storing candidates objective
-//         float candidates_obj[TOURM_SIZE];
-//         for(int j = 0; j < TOURM_SIZE; j++){
-//             int random_index = rand_int(0, source_pop->prob->n-1);
-//             candidates_index[j] = random_index;
-//             candidates_obj[j] = source_pop[random_index].objective;
-//         }
-//         int parent = arr_max(candidates_obj);
-//         for(int j = 0; j < TOURM_SIZE; j++){
-//             if(parent == candidates_obj[j]){
-//                 candidate = candidates_index[j];
-//                 break;
-//             }
-//         }
-//         mating_pool[i] = candidate;
-//     }
-    
-// }
-
 void selection(struct solution_struct* mating_pool, struct solution_struct* source_pop){
     for(int i = 0; i < MATING_POOL_SIZE; i++){
         ////////////////////////////////
@@ -415,21 +392,8 @@ void selection(struct solution_struct* mating_pool, struct solution_struct* sour
                 }
             }  
         }
-        //printf("%d ", candidate);
         //select which one to be the pool
-        copy_solution(&mating_pool[i], &source_pop[candidate]);
-        //printf("!!!!!!\n");
-        //printf("feasibility%d %d \n", i, mating_pool[i].feasibility);
-        //test for whether overcross
-        // if(i == 0 || i == 1){
-        //     for(int a = 0; a < MATING_POOL_SIZE; a++){
-        //         printf("%d ", mating_pool[i].x[a]);
-        //     }  
-        //     printf("\n");
-        // }
-
-        
-        //printf("%d\n", i);        
+        copy_solution(&mating_pool[i], &source_pop[candidate]);      
     }
 }
 
@@ -464,9 +428,13 @@ void cross_over(struct solution_struct* pop)
             float crossover_rate = rand_01();
             int temp_x;
             if(crossover_rate < CROSSOVER_RATE){
-                temp_x = pop[2*i].x[j];          //store the x value of 1st chorom
-                pop[2*i].x[j] = pop[2*i+1].x[j];
-                pop[2*i+1].x[j] = temp_x;
+                // temp_x = pop[2*i].x[j];          //store the x value of 1st chorom
+                // pop[2*i].x[j] = pop[2*i+1].x[j];
+                // pop[2*i+1].x[j] = temp_x;
+
+                temp_x = pop[MATING_POOL_SIZE-1-i].x[j];          //store the x value of 1st chorom
+                pop[MATING_POOL_SIZE-1-i].x[j] = pop[i].x[j];
+                pop[i].x[j] = temp_x;
             }
             //evaluate_solution(&pop[2*i]);
             //evaluate_solution(&pop[2*i+1]);
@@ -662,15 +630,19 @@ bool apply_move(int nb_indx, int* move, struct solution_struct* sln ){
 }
 
 struct solution_struct* first_descent_vns(int nb_indx, struct solution_struct* curt_sln){
+// void first_descent_vns(int nb_indx, struct solution_struct* curt_sln){
     struct solution_struct* best_neighb = malloc(sizeof(struct solution_struct));
     best_neighb->cap_left = malloc(sizeof(int)*curt_sln->prob->dim);
     best_neighb->x = malloc(sizeof(int)*curt_sln->prob->n);
     copy_solution(best_neighb, curt_sln);
     int n=curt_sln->prob->n;
     int curt_move[] ={-1,-1,-1}, best_move []={-1,-1,-1}, delta=0, best_delta=0;  //storing best neighbourhood moves
+    int break_condition = 0;
     switch (nb_indx)
     {
         case 1: //check whether any items can be inserted.
+            //printf("start 1-swap\n");
+
             for(int i=0; i<n; i++){
                 if(curt_sln->x[i]>0) continue;
                 curt_move[0]=i;
@@ -687,13 +659,15 @@ struct solution_struct* first_descent_vns(int nb_indx, struct solution_struct* c
             for(int i=0; i<n; i++){
                 if(curt_sln->x[i]<=0) continue;
                 for(int j=0; j<n; j++){
-                    if(curt_sln->x[j]==0)
-                    {
-                        curt_move[0]= i; curt_move[1]= j; curt_move[2]=-1;
-                        if(can_move(nb_indx, &curt_move[0], best_neighb)){
-                            delta = curt_sln->prob->items[j].p -curt_sln->prob->items[i].p;
-                            if(delta > best_delta){
-                                best_delta = delta; best_move[0] = i; best_move[1] = j; best_move[2]=-1;
+                    if(curt_sln->x[j]==0){
+                        float sampling_rate = rand_01();
+                        if(sampling_rate < SAMPLING_RATE){
+                            curt_move[0]= i; curt_move[1]= j; curt_move[2]=-1;
+                            if(can_move(nb_indx, &curt_move[0], best_neighb)){
+                                delta = curt_sln->prob->items[j].p -curt_sln->prob->items[i].p;
+                                if(delta > best_delta){
+                                    best_delta = delta; best_move[0] = i; best_move[1] = j; best_move[2]=-1;
+                                }
                             }
                         }
                     }
@@ -708,13 +682,16 @@ struct solution_struct* first_descent_vns(int nb_indx, struct solution_struct* c
                 for(int j=0; j!=i&&j<n; j++){
                     if(curt_sln->x[j]==0) continue;
                     for(int k=0;k<n;k++){
-                        if(curt_sln->x[k] == 0)
-                        {
-                            curt_move[0]=i; curt_move[1]=j; curt_move[2]=k;
-                            if(can_move(nb_indx, &curt_move[0], best_neighb)){
-                                delta = curt_sln->prob->items[k].p -curt_sln->prob->items[i].p-curt_sln->prob->items[j].p;
-                                if(delta > best_delta){
-                                    best_delta = delta; best_move[0] = i; best_move[1] = j; best_move[2]=k;
+                        if(curt_sln->x[k] == 0){
+                            float sampling_rate = rand_01();
+                            if(sampling_rate < SAMPLING_RATE){
+
+                                curt_move[0]=i; curt_move[1]=j; curt_move[2]=k;
+                                if(can_move(nb_indx, &curt_move[0], best_neighb)){
+                                    delta = curt_sln->prob->items[k].p -curt_sln->prob->items[i].p-curt_sln->prob->items[j].p;
+                                    if(delta > best_delta){
+                                        best_delta = delta; best_move[0] = i; best_move[1] = j; best_move[2]=k;
+                                    }
                                 }
                             }
                         }
@@ -727,13 +704,16 @@ struct solution_struct* first_descent_vns(int nb_indx, struct solution_struct* c
                 for(int j=0; j<n; j++){
                     if(curt_sln->x[j]>0) continue;
                     for(int k=0;k!=j&&k<n;k++){
-                        if(curt_sln->x[k] == 0)
-                        {
-                            curt_move[0]=i; curt_move[1]=j; curt_move[2]=k;
-                            if(can_move(nb_indx, &curt_move[0], curt_sln)){
-                                delta = curt_sln->prob->items[k].p +curt_sln->prob->items[j].p-curt_sln->prob->items[i].p;
-                                if(delta > best_delta){
-                                    best_delta = delta; best_move[0] = i; best_move[1] = j; best_move[2]=k;
+                        if(curt_sln->x[k] == 0){
+                            float sampling_rate = rand_01();
+                            if(sampling_rate < SAMPLING_RATE){
+
+                                curt_move[0]=i; curt_move[1]=j; curt_move[2]=k;
+                                if(can_move(nb_indx, &curt_move[0], curt_sln)){
+                                    delta = curt_sln->prob->items[k].p +curt_sln->prob->items[j].p-curt_sln->prob->items[i].p;
+                                    if(delta > best_delta){
+                                        best_delta = delta; best_move[0] = i; best_move[1] = j; best_move[2]=k;
+                                    }
                                 }
                             }
                         }
@@ -745,31 +725,36 @@ struct solution_struct* first_descent_vns(int nb_indx, struct solution_struct* c
         default:
             printf("Neighbourhood index is out of the bounds, nothing is done!\n");
     }
+    //return curt_sln;
     return best_neighb;
 }
 
 void varaible_neighbourhood_search(struct solution_struct* pop){
 
     
-    for(int i = 0; i < MATING_POOL_SIZE; i+=LOCAL_SEARCH_GAP){      
+    for(int i = 0; i < MATING_POOL_SIZE; i+=LOCAL_SEARCH_GAP){    
+
+        float ratio = rand_01();
+        if(ratio >= LOCAL_SEARCH_RATE){
+            continue;
+        }
+
         int nb_indx = 0; //neighbourhood index
         time_fin=clock();
         double time_spent = (double)(time_fin-time_start)/CLOCKS_PER_SEC;
         struct solution_struct* curt_sln = &pop[i];
 
-        while(time_spent < MAX_TIME && nb_indx<K){      //这两行可能可以合并
-            //while(nb_indx<K){                           //这两行可能可以合并
-                struct solution_struct* neighb_s = first_descent_vns(nb_indx+1, curt_sln); //best solution in neighbourhood nb_indx
-                if(neighb_s->objective > curt_sln->objective){
-                    copy_solution(curt_sln, neighb_s);
-                    nb_indx=1;
-                }
-                else nb_indx++;
-                free_solution(neighb_s);free(neighb_s);
-            //}
-            //copy_solution(pop[i], neighb_s);
+        while(time_spent < MAX_TIME && nb_indx<K){      
+            struct solution_struct* neighb_s = first_descent_vns(nb_indx+1, curt_sln); //best solution in neighbourhood nb_indx
+            if(neighb_s->objective > curt_sln->objective){
+                copy_solution(curt_sln, neighb_s);
+                //*curt_sln = *neighb_s;
+                nb_indx=1;
+            }
+            else nb_indx++;
+            free_solution(neighb_s);free(neighb_s); 
         }
-        copy_solution(&pop[i], curt_sln);
+        pop[i] = *curt_sln;
     } 
 }
 
@@ -820,10 +805,6 @@ void local_search_first_descent(struct solution_struct* pop)
                     break;
                 }  
             }
-            // for(int a = 0; a < chorom_length; a++){
-            //    printf("%d ", pop[1].x[a]);
-            // }
-            // printf("\n");
         }
         //printf("go!\n");
     }
@@ -911,19 +892,22 @@ int memeticAlgorithm(struct problem_struct* prob)
         feasibility_repair(mating_pool);
         //local_search_first_descent(mating_pool);
         //no shaking operation
+        //printf("after repair\n");
+        //if((iter+1)%100 == 0){
         varaible_neighbourhood_search(mating_pool); 
-        //printf("1\n");
+        //}
+        //printf("after VNS\n");
         replacement(mating_pool, parent_pop);
         ///////////////////////
         iter++;
         time_fin=clock();
         time_spent = (double)(time_fin-time_start)/CLOCKS_PER_SEC;
-        //printf("gap: %f\n", (parent_pop->prob->optimal-parent_pop[0].objective)/parent_pop->prob->optimal);
+        printf("gap: %f  iter: %d\n", (parent_pop->prob->optimal-parent_pop[0].objective)/parent_pop->prob->optimal, iter);
     }
     //printf("1\n");
     update_best_solution(parent_pop);
     //printf("optimal: %d\n", parent_pop->prob->optimal);
-    printf("gap: %f\n", (parent_pop->prob->optimal-parent_pop[0].objective)/parent_pop->prob->optimal);
+    printf("gap: %f  iter: %d\n", (parent_pop->prob->optimal-parent_pop[0].objective)/parent_pop->prob->optimal, iter);
     
     
     //output_solution(&best_sln[0], "my_debug.txt");
