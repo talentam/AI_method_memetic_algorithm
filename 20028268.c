@@ -22,11 +22,11 @@ int num_of_problems;    //number of problems
 
 
 /* parameters for evlutionary algorithms*/
-static int POP_SIZE = 70;   //please modify these parameters according to your problem
+static int POP_SIZE = 50;   //please modify these parameters according to your problem
 int MAX_NUM_OF_GEN = 10000; //max number of generations
 float CROSSOVER_RATE = 0.5;
 float MUTATION_RATE = 0.02;
-int MATING_POOL_SIZE = 70;
+int MATING_POOL_SIZE = 50;
 int LOCAL_SEARCH_GAP = 1;
 int TOURM_SIZE = 4;
 float LOCAL_SEARCH_RATE = 1;
@@ -614,7 +614,6 @@ struct solution_struct* first_descent_vns(int nb_indx, struct solution_struct* c
     copy_solution(best_neighb, curt_sln);
     int n=curt_sln->prob->n;
     int curt_move[] ={-1,-1,-1}, best_move []={-1,-1,-1}, delta=0, best_delta=0;  //storing best neighbourhood moves
-    int break_condition = 0;
 ///////////////////
     int packed[n], unpacked[n];
     int packed_index = 0;
@@ -706,7 +705,6 @@ struct solution_struct* first_descent_vns(int nb_indx, struct solution_struct* c
             // break;
 
             packed_index = 0; unpacked_index = 0;
-
             for(int i = 0; i < n; i++){
                 if(curt_sln->x[i] == 1){
                     packed[packed_index] = i;
@@ -717,8 +715,6 @@ struct solution_struct* first_descent_vns(int nb_indx, struct solution_struct* c
                     unpacked_index++;
                 }
             }
-            // printf("unpacked_index: %d packed_index: %d\n", unpacked_index, packed_index);
-            // exit(0);
 
             for(int i=0; i<packed_index; i++){
                 for(int j=0; j<unpacked_index; j++){
@@ -781,6 +777,14 @@ void free_population(struct solution_struct* pop, int size) {
     }
 }
 
+int cmpfunc_sln (const void * a, const void * b) {
+    const struct solution_struct* sln1 = a;
+    const struct solution_struct* sln2 = b;
+    if(sln1->objective > sln2 ->objective) return -1;
+    if(sln1->objective < sln2 ->objective) return 1;
+    return 0;
+}
+
 void replacement(struct solution_struct* curt_pop, struct solution_struct* new_pop){
     //todo
     //  curt_pop: mating_pool
@@ -800,20 +804,24 @@ void replacement(struct solution_struct* curt_pop, struct solution_struct* new_p
         copy_solution(&mix_pop[MATING_POOL_SIZE+i], &new_pop[i]);
     }
     //select the individuals with higher objective      100 times
-    for(int i = 0; i < POP_SIZE; i++){  
-        int max_obj = mix_pop[0].objective;
-        int max_index = 0;
-        for(int j = 0; j < POP_SIZE+MATING_POOL_SIZE; j++){
-            if(max_obj <= mix_pop[j].objective){
-                max_obj = mix_pop[j].objective;
-                max_index = j;
+    // for(int i = 0; i < POP_SIZE; i++){  
+    //     int max_obj = mix_pop[0].objective;
+    //     int max_index = 0;
+    //     for(int j = 0; j < POP_SIZE+MATING_POOL_SIZE; j++){
+    //         if(max_obj <= mix_pop[j].objective){
+    //             max_obj = mix_pop[j].objective;
+    //             max_index = j;
                 
-            }
-        }
-        copy_solution(&new_pop[i], &mix_pop[max_index]);
-        //copy_solution(&temp_pop, &mix_pop[max_index]);
-    }
+    //         }
+    //     }
+    //     copy_solution(&new_pop[i], &mix_pop[max_index]);
+    //     //copy_solution(&temp_pop, &mix_pop[max_index]);
+    // }
 
+    qsort(mix_pop, POP_SIZE+MATING_POOL_SIZE, sizeof(struct solution_struct), cmpfunc_sln);
+    for(int i = 0; i < POP_SIZE; i++){  
+        copy_solution(&new_pop[i], &mix_pop[i]);
+    }
     //free
     free_population(mix_pop, POP_SIZE+MATING_POOL_SIZE);
     free_population(curt_pop, MATING_POOL_SIZE);
@@ -860,11 +868,12 @@ int memeticAlgorithm(struct problem_struct* prob)
         //}
         //printf("after VNS\n");
         replacement(mating_pool, parent_pop);
+
         ///////////////////////
         iter++;
         time_fin=clock();
         time_spent = (double)(time_fin-time_start)/CLOCKS_PER_SEC;
-        printf("gap: %f  iter: %d  time: %f\n", (parent_pop->prob->optimal-parent_pop[0].objective)/parent_pop->prob->optimal, iter, time_spent);
+        printf("gap: %f  worst: %f   iter: %d  time: %f\n", (parent_pop->prob->optimal-parent_pop[0].objective)/parent_pop->prob->optimal, (parent_pop->prob->optimal-parent_pop[POP_SIZE-1].objective)/parent_pop->prob->optimal, iter, time_spent);
     }
     //printf("1\n");
     update_best_solution(parent_pop);
