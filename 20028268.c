@@ -29,10 +29,11 @@ float MUTATION_RATE = 0.02;
 int MATING_POOL_SIZE = 70;
 int LOCAL_SEARCH_GAP = 1;
 int TOURM_SIZE = 4;
-float LOCAL_SEARCH_RATE = 0.25;
+float LOCAL_SEARCH_RATE = 1;
 
 clock_t time_start, time_fin;
 int K= 3; // k-opt is used
+
 
 /* declare parameters for simulated annealing here */
 
@@ -525,13 +526,7 @@ void feasibility_repair(struct solution_struct* pop)
                 break;
             }
         }
-        //evaluate_solution(&pop[i]);
-        //printf("feasibility %d \n", pop[i].feasibility);
     }
-    // for(int a = 0; a < MATING_POOL_SIZE; a++){
-    //     printf("feasibility %d \n", pop[a].feasibility);
-    // }
-    // printf("MATING_POOL_SIZE %d \n", MATING_POOL_SIZE);
 }
 
 bool can_swap(struct solution_struct* sln, int out, int in)
@@ -561,21 +556,12 @@ bool can_move(int nb_indx, int* move, struct solution_struct* curt_sln ){
     else if(nb_indx==3){//3-item swap
         int i= move[0], j= move[1], k= move[2];
         if(i<0 || j<0 || k<0) return false;
-        if(curt_sln->x[j]>0) {//2-1 swap
-            for(int d=0; d<curt_sln->prob->dim; d++){
-                if(curt_sln->cap_left[d] + curt_sln->prob->items[i].size[d] +
-                   curt_sln->prob->items[j].size[d] < curt_sln->prob->items[k].size[d])
-                    return false;
-            }
-        }
-        else {//1-2 swap
-            for(int d=0; d<curt_sln->prob->dim; d++){
-                if(curt_sln->cap_left[d] + curt_sln->prob->items[i].size[d] <
-                   curt_sln->prob->items[j].size[d] + curt_sln->prob->items[k].size[d])
-                    return false;
-            }
-        }
-        
+        //1-2 swap
+        for(int d=0; d<curt_sln->prob->dim; d++){
+            if(curt_sln->cap_left[d] + curt_sln->prob->items[i].size[d] <
+                curt_sln->prob->items[j].size[d] + curt_sln->prob->items[k].size[d])
+                return false;
+        }        
     }
     else ret=false;
     return ret;
@@ -606,22 +592,14 @@ bool apply_move(int nb_indx, int* move, struct solution_struct* sln ){
     else if(nb_indx==3){//3-item swap
         int i= move[0], j= move[1], k= move[2];
         if(i<0 || j<0 || k<0) return false;
-        if(sln->x[j]>0) {//2-1 swap
-            for(int d=0; d<sln->prob->dim; d++){
-                sln->cap_left[d] = sln->cap_left[d]+sln->prob->items[i].size[d] +
-                    sln->prob->items[j].size[d] - sln->prob->items[k].size[d];
-            }
-            sln->objective += sln->prob->items[k].p-sln->prob->items[i].p-sln->prob->items[j].p;
-            sln->x[i]=0; sln->x[j]=0; sln->x[k]=1;
+        //1-2 swap
+        for(int d=0; d<sln->prob->dim; d++){
+            sln->cap_left[d] = sln->cap_left[d]+sln->prob->items[i].size[d] -
+                sln->prob->items[j].size[d] - sln->prob->items[k].size[d];
         }
-        else {//1-2 swap
-            for(int d=0; d<sln->prob->dim; d++){
-                sln->cap_left[d] = sln->cap_left[d]+sln->prob->items[i].size[d] -
-                    sln->prob->items[j].size[d] - sln->prob->items[k].size[d];
-            }
-            sln->objective += sln->prob->items[j].p+sln->prob->items[k].p-sln->prob->items[i].p;
-            sln->x[i]=0; sln->x[j]=1; sln->x[k]=1;
-        }
+        sln->objective += sln->prob->items[j].p+sln->prob->items[k].p-sln->prob->items[i].p;
+        sln->x[i]=0; sln->x[j]=1; sln->x[k]=1;
+
         
     }
     else ret=false;
@@ -637,6 +615,12 @@ struct solution_struct* first_descent_vns(int nb_indx, struct solution_struct* c
     int n=curt_sln->prob->n;
     int curt_move[] ={-1,-1,-1}, best_move []={-1,-1,-1}, delta=0, best_delta=0;  //storing best neighbourhood moves
     int break_condition = 0;
+///////////////////
+    int packed[n], unpacked[n];
+    int packed_index = 0;
+    int unpacked_index = 0;
+///////////////////////
+
     switch (nb_indx)
     {
         case 1: //check whether any items can be inserted.
@@ -655,59 +639,95 @@ struct solution_struct* first_descent_vns(int nb_indx, struct solution_struct* c
             if(best_delta>0) {    apply_move(nb_indx, &best_move[0], best_neighb);}
             break;
         case 2:
-            for(int i=0; i<n; i++){
-                if(curt_sln->x[i]<=0) continue;
-                for(int j=0; j<n; j++){
-                    if(curt_sln->x[j]==0){
+            // for(int i=0; i<n; i++){
+            //     if(curt_sln->x[i]<=0) continue;
+            //     for(int j=0; j<n; j++){
+            //         if(curt_sln->x[j]==0){
+            //             curt_move[0]= i; curt_move[1]= j; curt_move[2]=-1;
+            //             if(can_move(nb_indx, &curt_move[0], best_neighb)){
+            //                 delta = curt_sln->prob->items[j].p -curt_sln->prob->items[i].p;
+            //                 if(delta > best_delta){
+            //                     best_delta = delta; best_move[0] = i; best_move[1] = j; best_move[2]=-1;
+            //                 }
+            //             }
+            //         }
+            //     }
+            // }
+            // if(best_delta>0) { apply_move(nb_indx, &best_move[0], best_neighb);}
+            // break;
 
-                        curt_move[0]= i; curt_move[1]= j; curt_move[2]=-1;
-                        if(can_move(nb_indx, &curt_move[0], best_neighb)){
-                            delta = curt_sln->prob->items[j].p -curt_sln->prob->items[i].p;
-                            if(delta > best_delta){
-                                best_delta = delta; best_move[0] = i; best_move[1] = j; best_move[2]=-1;
-                            }
+            //divide the items into 2 groups to reduce the time complexity
+            packed_index = 0; unpacked_index = 0;
+            for(int i = 0; i < n; i++){
+                if(curt_sln->x[i] == 1){
+                    packed[packed_index] = i;
+                    packed_index++;
+                }
+                else{
+                    unpacked[unpacked_index] = i;
+                    unpacked_index++;
+                }
+            }
+
+            for(int i=0; i<packed_index; i++){
+                for(int j=0; j<unpacked_index; j++){
+                    curt_move[0]= packed[i]; curt_move[1]= unpacked[j]; curt_move[2]=-1;
+                    if(can_move(nb_indx, &curt_move[0], best_neighb)){
+                        delta = curt_sln->prob->items[unpacked[j]].p -curt_sln->prob->items[packed[i]].p;
+                        if(delta > best_delta){
+                            best_delta = delta; best_move[0] = packed[i]; best_move[1] = unpacked[j]; best_move[2]=-1;
                         }
                     }
                 }
             }
+            //printf("after for\n");
             if(best_delta>0) { apply_move(nb_indx, &best_move[0], best_neighb);}
             break;
         case 3:
-            //2-1 swap
-            for(int i=0; i<n; i++){
-                if(curt_sln->x[i]==0) continue;
-                for(int j=0; j!=i&&j<n; j++){
-                    if(curt_sln->x[j]==0) continue;
-                    for(int k=0;k<n;k++){
-                        if(curt_sln->x[k] == 0){
+            // 1-2 swap
+            // for(int i=0; i<n; i++){
+            //     if(curt_sln->x[i]==0) continue;
+            //     for(int j=0; j<n; j++){
+            //         if(curt_sln->x[j]>0) continue;
+            //         for(int k=0;k!=j&&k<n;k++){
+            //             if(curt_sln->x[k] == 0){
+            //                 curt_move[0]=i; curt_move[1]=j; curt_move[2]=k;
+            //                 if(can_move(nb_indx, &curt_move[0], curt_sln)){
+            //                     delta = curt_sln->prob->items[k].p +curt_sln->prob->items[j].p-curt_sln->prob->items[i].p;
+            //                     if(delta > best_delta){
+            //                         best_delta = delta; best_move[0] = i; best_move[1] = j; best_move[2] = k;
+            //                     }
+            //                 }
+            //             }
+            //         }
+            //     }
+            // }
+            // if(best_delta>0) { apply_move(nb_indx, &best_move[0], best_neighb);}
+            // break;
 
+            packed_index = 0; unpacked_index = 0;
 
-                            curt_move[0]=i; curt_move[1]=j; curt_move[2]=k;
-                            if(can_move(nb_indx, &curt_move[0], best_neighb)){
-                                delta = curt_sln->prob->items[k].p -curt_sln->prob->items[i].p-curt_sln->prob->items[j].p;
-                                if(delta > best_delta){
-                                    best_delta = delta; best_move[0] = i; best_move[1] = j; best_move[2]=k;
-                                }
-                            }
-                        }
-                    }
+            for(int i = 0; i < n; i++){
+                if(curt_sln->x[i] == 1){
+                    packed[packed_index] = i;
+                    packed_index++;
+                }
+                else{
+                    unpacked[unpacked_index] = i;
+                    unpacked_index++;
                 }
             }
-            //1-2 swap
-            for(int i=0; i<n; i++){
-                if(curt_sln->x[i]==0) continue;
-                for(int j=0; j<n; j++){
-                    if(curt_sln->x[j]>0) continue;
-                    for(int k=0;k!=j&&k<n;k++){
-                        if(curt_sln->x[k] == 0){
+            // printf("unpacked_index: %d packed_index: %d\n", unpacked_index, packed_index);
+            // exit(0);
 
-
-                            curt_move[0]=i; curt_move[1]=j; curt_move[2]=k;
-                            if(can_move(nb_indx, &curt_move[0], curt_sln)){
-                                delta = curt_sln->prob->items[k].p +curt_sln->prob->items[j].p-curt_sln->prob->items[i].p;
-                                if(delta > best_delta){
-                                    best_delta = delta; best_move[0] = i; best_move[1] = j; best_move[2]=k;
-                                }
+            for(int i=0; i<packed_index; i++){
+                for(int j=0; j<unpacked_index; j++){
+                    for(int k=0; k!=j && k<unpacked_index; k++){
+                        curt_move[0]=packed[i]; curt_move[1]=unpacked[j]; curt_move[2]=unpacked[k];
+                        if(can_move(nb_indx, &curt_move[0], best_neighb)){
+                            delta = curt_sln->prob->items[unpacked[k]].p +curt_sln->prob->items[unpacked[j]].p-curt_sln->prob->items[packed[i]].p;
+                            if(delta > best_delta){
+                                best_delta = delta; best_move[0] = packed[i]; best_move[1] = unpacked[j]; best_move[2] = unpacked[k];
                             }
                         }
                     }
@@ -715,6 +735,7 @@ struct solution_struct* first_descent_vns(int nb_indx, struct solution_struct* c
             }
             if(best_delta>0) { apply_move(nb_indx, &best_move[0], best_neighb);}
             break;
+            
         default:
             printf("Neighbourhood index is out of the bounds, nothing is done!\n");
     }
@@ -732,7 +753,7 @@ void varaible_neighbourhood_search(struct solution_struct* pop){
             continue;
         }
 
-        int nb_indx = 0; //neighbourhood index
+        int nb_indx = 1; //neighbourhood index
         time_fin=clock();
         double time_spent = (double)(time_fin-time_start)/CLOCKS_PER_SEC;
         struct solution_struct* curt_sln = &pop[i];
@@ -742,65 +763,13 @@ void varaible_neighbourhood_search(struct solution_struct* pop){
             if(neighb_s->objective > curt_sln->objective){
                 copy_solution(curt_sln, neighb_s);
                 //*curt_sln = *neighb_s;
-                nb_indx=1;
+                nb_indx=2;
             }
             else nb_indx++;
             free_solution(neighb_s);free(neighb_s); 
         }
         pop[i] = *curt_sln;
     } 
-}
-
-
-
-//local search
-void local_search_first_descent(struct solution_struct* pop)
-{
-    //todo
-    //pair swap
-    int chorom_length = pop->prob->n;
-    //printf("chorom_length: %d\n", chorom_length);
-    //printf("obj: %d\n", chorom_length);
-    for(int i = 0; i < MATING_POOL_SIZE; i+=LOCAL_SEARCH_GAP){
-        //evaluate_solution(&pop[i]);
-        //printf("feasibility %d \n", pop[i].feasibility);
-        int improvement = 1;
-        while(improvement == 1){
-            for(int j = 0; j < chorom_length-1; j++){
-                for(int k = j+1; k < chorom_length; k++){
-                    //printf("j %d k %d \n", j, k);
-                    if(pop[i].x[j] + pop[i].x[k] == 1){             //test whether 1/0  or   0/1
-                        //swap
-                        //printf("feasibility %d \n", pop[i].feasibility);
-                        int temp_obj = pop[i].objective;
-                        int temp_x = pop[i].x[k];
-                        pop[i].x[k] = pop[i].x[j];
-                        pop[i].x[j] = temp_x;
-                        evaluate_solution(&pop[i]);
-                        //printf("feasibility %d \n", pop[i].feasibility);
-                        if(pop[i].feasibility <= 0 || pop[i].objective <= temp_obj){      //bad swap
-                            //if bad swap, swap it back
-                            int temp_x = pop[i].x[k];
-                            pop[i].x[k] = pop[i].x[j];
-                            pop[i].x[j] = temp_x;
-                            evaluate_solution(&pop[i]);
-                            //printf("feasibility %d \n", pop[i].feasibility);
-                            improvement = 0;
-                        }
-                        else if(pop[i].feasibility > 0 || pop[i].objective > temp_obj){       //good swap
-                            //printf("feasibility %d \n", pop[i].feasibility);
-                            improvement = 1;
-                            break;
-                        }
-                    }  
-                }
-                if(improvement == 1){
-                    break;
-                }  
-            }
-        }
-        //printf("go!\n");
-    }
 }
 
 void free_population(struct solution_struct* pop, int size) {
@@ -895,7 +864,7 @@ int memeticAlgorithm(struct problem_struct* prob)
         iter++;
         time_fin=clock();
         time_spent = (double)(time_fin-time_start)/CLOCKS_PER_SEC;
-        printf("gap: %f  iter: %d\n", (parent_pop->prob->optimal-parent_pop[0].objective)/parent_pop->prob->optimal, iter);
+        printf("gap: %f  iter: %d  time: %f\n", (parent_pop->prob->optimal-parent_pop[0].objective)/parent_pop->prob->optimal, iter, time_spent);
     }
     //printf("1\n");
     update_best_solution(parent_pop);
