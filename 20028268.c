@@ -33,7 +33,6 @@ float LOCAL_SEARCH_RATE = 0.25;
 
 clock_t time_start, time_fin;
 int K= 3; // k-opt is used
-float SAMPLING_RATE = 2;
 
 /* declare parameters for simulated annealing here */
 
@@ -660,14 +659,12 @@ struct solution_struct* first_descent_vns(int nb_indx, struct solution_struct* c
                 if(curt_sln->x[i]<=0) continue;
                 for(int j=0; j<n; j++){
                     if(curt_sln->x[j]==0){
-                        float sampling_rate = rand_01();
-                        if(sampling_rate < SAMPLING_RATE){
-                            curt_move[0]= i; curt_move[1]= j; curt_move[2]=-1;
-                            if(can_move(nb_indx, &curt_move[0], best_neighb)){
-                                delta = curt_sln->prob->items[j].p -curt_sln->prob->items[i].p;
-                                if(delta > best_delta){
-                                    best_delta = delta; best_move[0] = i; best_move[1] = j; best_move[2]=-1;
-                                }
+
+                        curt_move[0]= i; curt_move[1]= j; curt_move[2]=-1;
+                        if(can_move(nb_indx, &curt_move[0], best_neighb)){
+                            delta = curt_sln->prob->items[j].p -curt_sln->prob->items[i].p;
+                            if(delta > best_delta){
+                                best_delta = delta; best_move[0] = i; best_move[1] = j; best_move[2]=-1;
                             }
                         }
                     }
@@ -683,15 +680,13 @@ struct solution_struct* first_descent_vns(int nb_indx, struct solution_struct* c
                     if(curt_sln->x[j]==0) continue;
                     for(int k=0;k<n;k++){
                         if(curt_sln->x[k] == 0){
-                            float sampling_rate = rand_01();
-                            if(sampling_rate < SAMPLING_RATE){
 
-                                curt_move[0]=i; curt_move[1]=j; curt_move[2]=k;
-                                if(can_move(nb_indx, &curt_move[0], best_neighb)){
-                                    delta = curt_sln->prob->items[k].p -curt_sln->prob->items[i].p-curt_sln->prob->items[j].p;
-                                    if(delta > best_delta){
-                                        best_delta = delta; best_move[0] = i; best_move[1] = j; best_move[2]=k;
-                                    }
+
+                            curt_move[0]=i; curt_move[1]=j; curt_move[2]=k;
+                            if(can_move(nb_indx, &curt_move[0], best_neighb)){
+                                delta = curt_sln->prob->items[k].p -curt_sln->prob->items[i].p-curt_sln->prob->items[j].p;
+                                if(delta > best_delta){
+                                    best_delta = delta; best_move[0] = i; best_move[1] = j; best_move[2]=k;
                                 }
                             }
                         }
@@ -705,15 +700,13 @@ struct solution_struct* first_descent_vns(int nb_indx, struct solution_struct* c
                     if(curt_sln->x[j]>0) continue;
                     for(int k=0;k!=j&&k<n;k++){
                         if(curt_sln->x[k] == 0){
-                            float sampling_rate = rand_01();
-                            if(sampling_rate < SAMPLING_RATE){
 
-                                curt_move[0]=i; curt_move[1]=j; curt_move[2]=k;
-                                if(can_move(nb_indx, &curt_move[0], curt_sln)){
-                                    delta = curt_sln->prob->items[k].p +curt_sln->prob->items[j].p-curt_sln->prob->items[i].p;
-                                    if(delta > best_delta){
-                                        best_delta = delta; best_move[0] = i; best_move[1] = j; best_move[2]=k;
-                                    }
+
+                            curt_move[0]=i; curt_move[1]=j; curt_move[2]=k;
+                            if(can_move(nb_indx, &curt_move[0], curt_sln)){
+                                delta = curt_sln->prob->items[k].p +curt_sln->prob->items[j].p-curt_sln->prob->items[i].p;
+                                if(delta > best_delta){
+                                    best_delta = delta; best_move[0] = i; best_move[1] = j; best_move[2]=k;
                                 }
                             }
                         }
