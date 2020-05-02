@@ -29,7 +29,7 @@ float MUTATION_RATE = 0.02;
 int MATING_POOL_SIZE = 50;
 int LOCAL_SEARCH_GAP = 1;
 int TOURM_SIZE = 4;
-float LOCAL_SEARCH_RATE = 1;
+float LOCAL_SEARCH_RATE = 0.1;
 
 clock_t time_start, time_fin;
 int K= 3; // k-opt is used
