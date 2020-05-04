@@ -27,12 +27,10 @@ int MAX_NUM_OF_GEN = 10000; //max number of generations
 float CROSSOVER_RATE = 0.5;
 float MUTATION_RATE = 0.01;
 int MATING_POOL_SIZE = 50;
-int LOCAL_SEARCH_GAP = 1;
 int TOURM_SIZE = 2;
-float LOCAL_SEARCH_RATE = 1;
 clock_t time_start, time_fin;
 int K= 2; // k-opt is used
-int VNS_SWAP_NUM = 12000;
+int VNS_SWAP_NUM = 10000;
 
 struct solution_struct best_sln;  //global best solution
 
@@ -42,7 +40,6 @@ float rand_01()
     float number;
     number = (float) rand();
     number = number/RAND_MAX;
-    //printf("rand01=%f\n", number);
     return number;
 }
 
@@ -51,7 +48,6 @@ int rand_int(int min, int max)
 {
     int div = max-min+1;
     int val =rand() % div + min;
-    //printf("rand_range= %d \n", val);
     return val;
 }
 
@@ -126,19 +122,16 @@ struct problem_struct** load_problems(char* data_file)
         {
             my_problems[k]->items[j].dim=dim;
             fscanf(pfile, "%d", &(my_problems[k]->items[j].p)); //read profit data
-            //printf("item[j].p=%d\n",my_problems[k]->items[j].p);
         }
         for(i=0; i<dim; i++)
         {
             for(j=0; j<n; j++)
             {
                 fscanf(pfile, "%d", &(my_problems[k]->items[j].size[i])); //read size data
-                //printf("my_problems[%i]->items[%i].size[%i]=%d\n",k,j,i,my_problems[k]->items[j].size[i]);
             }
         }
         for(i=0; i<dim; i++){
             fscanf(pfile, "%d", &(my_problems[k]->capacities[i]));
-            //printf("capacities[i]=%d\n",my_problems[k]->capacities[i] );
         }
     }
     fclose(pfile); //close file
@@ -234,9 +227,6 @@ void output_solution(struct solution_struct* sln, char* out_file)
             fprintf(pfile, "%i ", sln->x[i]);
         }
         fprintf(pfile, "\n");
-        /*for(int j=0; j<sln->prob->n; j++)
-            fprintf(pfile, "%i ", sln->prob->items[j].p);
-        fprintf(pfile, "\n");*/
         fclose(pfile);
     }
     else
@@ -267,7 +257,6 @@ int check_solutions(struct problem_struct** my_problems, char* solution_file)
     int n, dim;
     while(fscanf (pfile, "%f", &val_obj)!=EOF && k<num_of_problems)
     {
-        //val_obj = val;
         n= my_problems[k]->n;  dim= my_problems[k]->dim;
         temp_sln.x = malloc(sizeof(int)*n);
         temp_sln.cap_left=malloc(sizeof(int)*dim);
@@ -283,8 +272,6 @@ int check_solutions(struct problem_struct** my_problems, char* solution_file)
                 if(!temp_sln.feasibility || fabs(temp_sln.objective - val_obj)>0.01)
                 {
                     fclose(pfile);
-                    //printf("feasb=%i, obj= %f, val=%i\n",temp_sln.feasibility, temp_sln.objective, val_obj);
-                    //output_solution(&temp_sln, "my_debug.txt");
                     return k+1;  //infeasible soltuion or wrong obj
                 }
                 else{
@@ -381,7 +368,6 @@ void selection(struct solution_struct* mating_pool, struct solution_struct* sour
 //Uniform Crossover
 void cross_over(struct solution_struct* pop)
 {
-    /* Uniform Crossover */
     int chorom_length = pop->prob->n;
     for(int i = 0; i < MATING_POOL_SIZE/2; i++){
         for(int j = 0; j < chorom_length; j++){
@@ -441,35 +427,6 @@ void feasibility_repair(struct solution_struct* pop)
             pop[i].x[min_index] = 0;
             evaluate_solution(&pop[i]); 
         }
-        //add
-		/*
-        while(1){
-            //initialize max_price and max_index
-            int max_price, max_index;
-            for(int j = 0; j < chorom_length; j++){
-                if(pop[i].x[j] == 0){
-                    max_price = pop[i].prob->items[0].p;
-                    max_index = j;
-                    break;
-                }
-            }
-            //find max_price and max_index
-            for(int j = 0; j < chorom_length; j++){
-                if(pop[i].prob->items[j].p > max_price && pop[i].x[j] == 0){
-                    max_price = pop[i].prob->items[0].p;
-                    max_index = j;
-                }
-            }
-            pop[i].x[max_index] = 1;
-            evaluate_solution(&pop[i]);
-            //drop the last item if it violates capacity
-            if(pop[i].feasibility != 1){
-                pop[i].x[max_index] = 0;
-                evaluate_solution(&pop[i]);
-                break;
-            }
-        }
-        */
     }
 }
 
@@ -615,11 +572,10 @@ struct solution_struct* best_descent_vns(int nb_indx, struct solution_struct* cu
 }
 
 //best descent VNS
-void varaible_neighbourhood_search(struct solution_struct* pop){   
-    for(int i = 0; i < MATING_POOL_SIZE; i+=LOCAL_SEARCH_GAP){    
-
+void varaible_neighbourhood_search(struct solution_struct* pop){
+    for(int i = 0; i < MATING_POOL_SIZE; i++){
         float ratio = rand_01();
-        if(ratio >= LOCAL_SEARCH_RATE){
+        if(ratio >= 1){
             continue;
         }
         int nb_indx = 0; //neighbourhood index
@@ -712,12 +668,12 @@ int memeticAlgorithm(struct problem_struct* prob)
         time_fin=clock();
         time_spent = (double)(time_fin-time_start)/CLOCKS_PER_SEC;
         //printf("gap: %f  worst: %f   iter: %d  time: %f\n", (parent_pop->prob->optimal-parent_pop[0].objective)/parent_pop->prob->optimal, (parent_pop->prob->optimal-parent_pop[POP_SIZE-1].objective)/parent_pop->prob->optimal, iter, time_spent);
-        printf("gap: %f  worst: %f   iter: %d  time: %f\n", parent_pop[0].objective, parent_pop[POP_SIZE-1].objective, iter, time_spent);   
+        //printf("best: %f  worst: %f   iter: %d  time: %f\n", parent_pop[0].objective, parent_pop[POP_SIZE-1].objective, iter, time_spent);   
     }
     update_best_solution(parent_pop);
     //printf("optimal: %d\n", parent_pop->prob->optimal);
     //printf("gap: %f  worst: %f   iter: %d  time: %f\n", (parent_pop->prob->optimal-parent_pop[0].objective)/parent_pop->prob->optimal, (parent_pop->prob->optimal-parent_pop[POP_SIZE-1].objective)/parent_pop->prob->optimal, iter, time_spent);    
-    printf("gap: %f  worst: %f   iter: %d  time: %f\n", parent_pop[0].objective, parent_pop[POP_SIZE-1].objective, iter, time_spent);   
+    printf("best: %f  worst: %f   iter: %d  time: %f\n", parent_pop[0].objective, parent_pop[POP_SIZE-1].objective, iter, time_spent);   
     return 0;
 }
 
